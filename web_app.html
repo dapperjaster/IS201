@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pitch Perfect Guessing Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f4f4f9;
+            color: #191414;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            margin-top: 20px;
+        }
+        .game-container {
+            max-width: 500px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .accent {
+            accent-color: #1DB954;
+        }
+        button {
+            background-color: #1DB954;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #1DB954;
+        }
+        input[type="range"] {
+            width: 80%;
+            max-width: 400px;
+            margin: 10px 0;
+        }
+        .message {
+            margin: 10px;
+            font-size: 18px;
+        }
+        #note-display {
+            font-size: 24px;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pitch Perfect Guessing Game</h1>
+    <h3>Warning: <span style="color: red;">Loud Volume</span></h3>
+    <div class="game-container">
+        <p>Guess the tone (G3-G5)!</p>
+        <p style="font-size: smaller;">(an incorrect guess plays your guessed tone, followed by the correct tone)</p>
+        
+        <!-- Slider for note selection -->
+        <input type="range" id="note-slider" min="35" max="59" step="1" class="accent">
+        <div id="note-display">G3</div>
+
+        <button id="play-pitch">Hear the Pitch</button>
+        <button id="submit-guess">Submit Guess</button>
+        
+        <div class="message" id="feedback"></div>
+        <p>Guesses: <span id="guess-count">0</span></p>
+        <button id="restart" style="display: none;">Play Again</button>
+    </div>
+
+    <script>
+        // Constants for piano frequencies (G3 to G5)
+        const A0 = 27.5; // Frequency of A0 (key 1)
+        const SEMITONE_RATIO = Math.pow(2, 1 / 12); // Ratio between each semitone
+        const totalKeys = 88;
+
+        // Generate pitch for a given key number (G3 = 35, G5 = 59)
+        function getFrequency(key) {
+            return A0 * Math.pow(SEMITONE_RATIO, key - 1);
+        }
+
+        // Web Audio API setup
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playTone(frequency, duration = 0.75) {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.type = "triangle";  // Using triangle wave
+            oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+
+        // Game logic
+        let secretKey = Math.floor(Math.random() * 25) + 35; // Secret key between G3 (35) and G5 (59)
+        let guessCount = 0;
+
+        // Update note display when the slider is moved
+        const slider = document.getElementById("note-slider");
+        const noteDisplay = document.getElementById("note-display");
+
+        // Set the initial note display based on the slider value
+        noteDisplay.textContent = getNoteName(slider.value);
+
+        slider.addEventListener("input", () => {
+            const note = getNoteName(slider.value);
+            noteDisplay.textContent = note;
+        });
+
+        // Convert slider value to note name (G3-G5)
+        function getNoteName(sliderValue) {
+            const notes = ["G", "G#", "A", "A#", "B", "C", "C#", "D", "D#", "E", "F", "F#"];
+            const octave = Math.floor((sliderValue - 28) / 12) + 3;  // Adjust octave calculation to start at G3
+            const noteIndex = (sliderValue - 35) % 12;  // Adjust to calculate from G3
+            return `${notes[noteIndex]}${octave}`;
+        }
+
+        document.getElementById("play-pitch").addEventListener("click", () => {
+            playTone(getFrequency(secretKey));
+        });
+
+        document.getElementById("submit-guess").addEventListener("click", () => {
+            const guess = parseInt(slider.value, 10);
+            const feedback = document.getElementById("feedback");
+
+            if (guess < 35 || guess > 59) {
+                feedback.textContent = "Please select a note between G3 and G5.";
+                return;
+            }
+
+            // Increment guess counter
+            guessCount++;
+            document.getElementById("guess-count").textContent = guessCount;
+
+            // Play guessed tone and then secret tone
+            playTone(getFrequency(guess), 0.5);
+            setTimeout(() => playTone(getFrequency(secretKey), 0.5), 500);
+
+            // Check guess
+            if (guess === secretKey) {
+                feedback.textContent = `🎉 Correct! The note was ${getNoteName(secretKey)}. You guessed it in ${guessCount} tries!`;
+                document.getElementById("restart").style.display = "block";
+            } else if (guess > secretKey) {
+                feedback.textContent = "Too high! Try a lower number.";
+            } else {
+                feedback.textContent = "Too low! Try a higher number.";
+            }
+        });
+
+        document.getElementById("restart").addEventListener("click", () => {
+            secretKey = Math.floor(Math.random() * 25) + 35;
+            guessCount = 0;
+            document.getElementById("guess-count").textContent = guessCount;
+            document.getElementById("feedback").textContent = "";
+            document.getElementById("restart").style.display = "none";
+            slider.value = 47;
+            noteDisplay.textContent = getNoteName(47);
+        });
+    </script>
+</body>
+</html>
